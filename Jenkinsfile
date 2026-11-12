@@ -26,18 +26,17 @@ pipeline {
             }
         }
 
-        // STEP 2: SETUP VIRTUAL ENVIRONMENT
-        stage('Setup Virtual Environment') {
-            steps {
-                bat """
-                    python --version
-                    python -m venv %VENV_DIR%
-                    call %VENV_DIR%\\Scripts\\activate
-                    python -m pip install --upgrade pip
-                    pip install -r requirements.txt
-                """
-            }
+    stage('Setup Virtual Environment') {
+        steps {
+            sh '''
+                python3 --version
+                python3 -m venv .venv
+                . .venv/bin/activate
+                python -m pip install --upgrade pip
+                pip install -r requirements.txt
+            '''
         }
+    }
 
         // STEP 3: RUN TESTS
         stage('Run Tests') {
