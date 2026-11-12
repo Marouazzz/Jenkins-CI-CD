@@ -2,7 +2,6 @@
 pipeline {
     agent any
 
-    // AUTOMATIC TRIGGERS
     triggers {
         cron('H/5 * * * *')
         githubPush()
@@ -17,28 +16,21 @@ pipeline {
 
     stages {
 
-        // STEP 1: CHECKOUT
-        stage('Checkout') {
+        stage('Setup Virtual Environment') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/Marouazzz/Jenkins-CI-CD.git',
-                    credentialsId: 'github-token2'
+                echo 'Setting up Python virtual environment...'
+
+                sh '''
+                    python3 --version
+                    python3 -m venv ${VENV_DIR}
+                    . ${VENV_DIR}/bin/activate
+
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
             }
         }
 
-    stage('Setup Virtual Environment') {
-        steps {
-            sh '''
-                python3 --version
-                python3 -m venv .venv
-                . .venv/bin/activate
-                python -m pip install --upgrade pip
-                pip install -r requirements.txt
-            '''
-        }
-    }
-
-        // STEP 3: RUN TESTS
         stage('Run Tests') {
             when {
                 not {
@@ -47,67 +39,78 @@ pipeline {
             }
 
             parallel {
+
                 stage('Test File 1') {
                     steps {
-                        bat """
-                            call %VENV_DIR%\\Scripts\\activate
+                        echo 'Running tests from test_app.py'
+
+                        sh '''
+                            . ${VENV_DIR}/bin/activate
                             python -m pytest test_app.py -v
-                        """
+                        '''
                     }
                 }
 
                 stage('Test File 2') {
                     steps {
-                        bat """
-                            call %VENV_DIR%\\Scripts\\activate
+                        echo 'Running tests from test_app_2.py'
+
+                        sh '''
+                            . ${VENV_DIR}/bin/activate
                             python -m pytest test_app_2.py -v
-                        """
+                        '''
                     }
                 }
             }
         }
 
-        // STEP 4: DEPLOY
         stage('Deploy (Local with Gunicorn)') {
             steps {
-                echo 'Starting Flask app locally using Gunicorn...'
+                echo 'Starting Flask application using Gunicorn...'
 
-                bat """
-                    call %VENV_DIR%\\Scripts\\activate
-                    start /B gunicorn --bind %HOST%:%PORT% %APP_MODULE% > gunicorn.log 2>&1
-                    echo Gunicorn started on http://%HOST%:%PORT%
-                """
+                sh '''
+                    . ${VENV_DIR}/bin/activate
+
+                    nohup gunicorn \
+                        --bind ${HOST}:${PORT} \
+                        ${APP_MODULE} \
+                        > gunicorn.log 2>&1 &
+
+                    echo "Gunicorn started on port ${PORT}"
+                '''
             }
         }
     }
 
-    // EMAIL NOTIFICATIONS
     post {
+
         success {
+            echo 'Pipeline completed successfully!'
+
             emailext(
-                to: "EMAIL_TO_PLACEHOLDER",
-                from: "EMAIL_FROM_PLACEHOLDER",
-                replyTo: "EMAIL_REPLY_PLACEHOLDER",
+                to: "YOUR_EMAIL@gmail.com",
                 subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 mimeType: 'text/html',
                 body: """
-                    <p>Good news!</p>
-                    <p>Build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> succeeded.</p>
-                    <p>Check details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                    <h2>Build Successful!</h2>
+                    <p>Job: <b>${env.JOB_NAME}</b></p>
+                    <p>Build: <b>#${env.BUILD_NUMBER}</b></p>
+                    <p>Details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
                 """
             )
         }
 
         failure {
+            echo 'Pipeline failed!'
+
             emailext(
-                to: "EMAIL_TO_PLACEHOLDER",
-                from: "EMAIL_FROM_PLACEHOLDER",
-                replyTo: "EMAIL_REPLY_PLACEHOLDER",
+                to: "YOUR_EMAIL@gmail.com",
                 subject: "FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 mimeType: 'text/html',
                 body: """
-                    <p>Uh oh...</p>
-                    <p>Build <b>${env.JOB_NAME} #${env.BUILD_NUMBER}</b> failed.</p>
+                    <h2>Build Failed!</h2>
+                    <p>Job: <b>${env.JOB_NAME}</b></p>
+                    <p>Build: <b>#${env.BUILD_NUMBER}</b></p>
                     <p>Check logs: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
                 """
             )
