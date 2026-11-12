@@ -39,7 +39,6 @@ pipeline {
             }
 
             parallel {
-
                 stage('Test File 1') {
                     steps {
                         echo 'Running tests from test_app.py'
@@ -83,37 +82,18 @@ pipeline {
     }
 
     post {
-
         success {
             echo 'Pipeline completed successfully!'
-
-            emailext(
-                to: "YOUR_EMAIL@gmail.com",
-                subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                body: """
-                    <h2>Build Successful!</h2>
-                    <p>Job: <b>${env.JOB_NAME}</b></p>
-                    <p>Build: <b>#${env.BUILD_NUMBER}</b></p>
-                    <p>Details: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                """
-            )
+            echo "Build URL: ${BUILD_URL}"
         }
 
         failure {
             echo 'Pipeline failed!'
+            echo "Build URL: ${BUILD_URL}"
+        }
 
-            emailext(
-                to: "YOUR_EMAIL@gmail.com",
-                subject: "FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                body: """
-                    <h2>Build Failed!</h2>
-                    <p>Job: <b>${env.JOB_NAME}</b></p>
-                    <p>Build: <b>#${env.BUILD_NUMBER}</b></p>
-                    <p>Check logs: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                """
-            )
+        always {
+            echo 'Pipeline execution finished.'
         }
     }
 }
